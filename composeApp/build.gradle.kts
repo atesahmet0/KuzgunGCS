@@ -34,6 +34,7 @@ kotlin {
                         // Serve sources to debug inside browser
                         add(rootDirPath)
                         add(projectDirPath)
+                        add("$projectDir/src/jsMain/resources")
                     }
                 }
             }
