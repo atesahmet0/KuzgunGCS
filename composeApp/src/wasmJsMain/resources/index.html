@@ -8,18 +8,26 @@
     <script type="application/javascript" src="composeApp.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
 </head>
-<body>
-<div id="map" style="height: 100vh;"></div>
-<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <script>
     // Global map variable
     let map;
-
+    let marker;
     function initializeMap() {
         map = L.map('map').setView([51.505, -0.09], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
         }).addTo(map);
+        var droneIcon = L.icon({
+        iconUrl: 'drone.png',
+        //shadowUrl: 'drone.png',
+
+        iconSize:     [30, 30], // size of the icon
+        shadowSize:   [0, 0], // size of the shadow
+        iconAnchor:   [15, 15], // point of the icon which will correspond to marker's location
+        shadowAnchor: [4, 62],  // the same for the shadow
+        popupAnchor:  [-3, -76] // point from which the popup should open relative to the iconAnchor
+        });
+        marker = L.marker([0, 0], {icon: droneIcon}).addTo(map); // Create marker at the coordinates
     }
 
     function setMapLocation(lat, lng, zoom) {
@@ -27,6 +35,20 @@
             map.setView([lat, lng], zoom);
         }
     }
+
+
+    function moveMarker(lat, lng) {
+      marker.setLatLng([lat, lng]);
+      console.log(lat+","+lng);
+    }
+
+    function deleteMarker(markerObj){
+
+    }
+
 </script>
+<body>
+<div id="map" style="height: 100vh;"></div>
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 </body>
 </html>

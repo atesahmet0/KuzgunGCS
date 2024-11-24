@@ -1,8 +1,6 @@
 package org.gcs.clonifylabs.com
 
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.window.ComposeViewport
-import kotlinx.browser.document
 import org.gcs.clonifylabs.com.map.MapView
 import org.gcs.clonifylabs.com.map.WebMapView
 
@@ -11,6 +9,12 @@ private external fun setMapLocation(latitude: Double, longitude: Double, zoom: I
 
 @JsName("initializeMap")
 private external fun initializeMap()
+
+@JsName("addMarker")
+private external fun addMarker(lat:Double,lng:Double)
+
+@JsName("moveMarker")
+private external fun moveMarker(lat: Double,lng: Double)
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -21,4 +25,7 @@ fun main() {
 
     // Set the location to New York City
     mapView.setLocation(40.7128, -74.0060, 12)
+
+    mapView.goToMarker(40.711400, -74.008654);
+
 }
