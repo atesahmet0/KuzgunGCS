@@ -1,3 +1,4 @@
+//gradle 8.9 du
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -9,7 +10,10 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    //id("org.jetbrains.kotlin.jvm")
 }
+
+
 
 kotlin {
     androidTarget {
@@ -58,10 +62,16 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
+            implementation(libs.kotlin.stdlib)
+            implementation(libs.kotlin.reflect)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
+        }
+        wasmJsMain.dependencies {
+            implementation(libs.jetbrains.kotlin.stdlib)
+            implementation(libs.jetbrains.kotlin.reflect)
         }
     }
 }

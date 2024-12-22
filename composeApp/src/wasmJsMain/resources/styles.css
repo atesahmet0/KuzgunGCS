@@ -5,3 +5,6 @@ html, body {
     padding: 0;
     overflow: hidden;
 }
+#map{
+    height: 45%;
+}
