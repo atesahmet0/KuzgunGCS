@@ -18,6 +18,8 @@ using namespace std;
 
 #define UDP_PORT 14550
 bool received_fly_command = false;
+bool recieved_mission_upload = false;
+bool recieved_auto_RTL = false;
 typedef websocketpp::server<websocketpp::config::asio> WebSocketServer;
 typedef std::set<websocketpp::connection_hdl, std::owner_less<websocketpp::connection_hdl>> ConnectionList;
 
@@ -126,7 +128,7 @@ void broadcast_data(const std::string &data) {
 }
 
 // MAVLink mesajlarını işleme
-void process_mavlink_message(mavlink_message_t &msg) {
+void process_mavlink_message(mavlink_message_t &msg,int sock,sockaddr_in addr) {
     switch (msg.msgid) {
         case MAVLINK_MSG_ID_GPS_RAW_INT: {
             mavlink_msg_gps_raw_int_decode(&msg, &latest_gps_raw);
@@ -138,6 +140,12 @@ void process_mavlink_message(mavlink_message_t &msg) {
         }
         case MAVLINK_MSG_ID_HEARTBEAT: {
             mavlink_msg_heartbeat_decode(&msg, &latest_heartbeat);
+            cout<<"heartbeat custom = "<<latest_heartbeat.custom_mode<<endl;
+            if (latest_heartbeat.custom_mode == 50593792 && recieved_auto_RTL) // mav_mode_loiter
+            {
+                set_mode_rtl(sock,addr);
+            }
+            
             break;
         }
         case MAVLINK_MSG_ID_RC_CHANNELS_RAW: {
@@ -153,49 +161,14 @@ void process_mavlink_message(mavlink_message_t &msg) {
             uint8_t component_id = msg.compid;
 
             std::cout << "Received message from system_id=" << (int)system_id
-              << ", component_id=" << (int)component_id << std::endl;
+              << ", component_id=" << (int)component_id  << std::endl;
 
             std::cout << "Unknown message ID: " << msg.msgid << std::endl;
             break;
     }
 }
 
-void fly_command(int sock,sockaddr_in addr){
-    
-    // Önceki mission'ı temizle
-    send_mission_clear_all(sock,addr);
-    sleep(2);
 
-    // Mission count gönder
-    std::cout << "Sending mission count..." << std::endl;
-    send_mission_count(sock, addr, mission_points.size());
-    sleep(2);
-
-    // Mission itemları gönder
-    for (size_t i = 0; i < mission_points.size(); i++) {
-        std::cout << "Sending mission item " << i << std::endl;
-        send_mission_item(sock, addr, i, mission_points[i]);
-        usleep(100000);
-    }
-    sleep(2);
-
-    // Auto mode'a geç
-    std::cout << "Setting AUTO mode..." << std::endl;
-    send_set_mode_command(sock, addr, PX4_CUSTOM_MAIN_MODE_AUTO);
-    sleep(2);
-    // Arm et
-    std::cout << "Arming drone..." << std::endl;
-    send_arm_command(sock, addr, true);
-    sleep(3);
-
-    // Mission'ı başlat
-    std::cout << "Starting mission..." << std::endl;
-    send_mission_start_command(sock, addr);
-
-    // Heartbeat'i devam ettir
-    std::cout << "Continuing heartbeat..." << std::endl;
-
-}
 
 int main() {
     //
@@ -219,6 +192,7 @@ int main() {
     server.set_access_channels(websocketpp::log::alevel::app);
 
     server.init_asio();
+
     server.set_reuse_addr(true);
 
     // WebSocket event handlers
@@ -269,17 +243,28 @@ int main() {
         if (payload == "fly") {
             received_fly_command = true;
         }
+
         if(payload.find("waypoint") != std::string::npos){
             std::vector<std::string> result;
             std::stringstream ss(payload);
             std::string item;
-
             while (getline(ss, item, ',')) {
                 result.push_back(item);
             }
             MissionPoint ms = {stod(result[1]),stod(result[2])};
             mission_points.push_back(ms);
             
+            
+        }
+        if(payload == "autoRTL"){
+            recieved_auto_RTL = true;
+        }
+        if(payload == "uploadMission"){
+            std::cout<<&mission_points[0];
+            recieved_mission_upload = true;
+        }
+        if(payload == "deleteMissions"){
+            mission_points = {};
         }
     });
     // MAVLink mesajı ve buffer
@@ -297,11 +282,15 @@ int main() {
             for (int i = 0; i < len; i++) {
                 if (mavlink_parse_char(MAVLINK_COMM_0, mavlink_buffer[i], &msg, NULL)) {
                     // Mesajı işle ve WebSocket üzerinden gönder
-                    process_mavlink_message(msg);
+                    process_mavlink_message(msg,sock,addr);
                     std::string json = all_data_to_json();
                     broadcast_data(json);
                 }
             }
+        }
+        if(recieved_mission_upload){
+            upload_mission(sock,addr);
+            recieved_mission_upload = false;
         }
         if (received_fly_command) {
             fly_command(sock,addr);

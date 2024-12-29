@@ -18,6 +18,7 @@ enum MAV_CMD {
     MAV_CMD_COMPONENT_ARM_DISARM = 400,
     MAV_CMD_DO_SET_MODE = 176,
     MAV_CMD_MISSION_START = 300
+    
 };
 
 // Set mode için gerekli enum
@@ -29,7 +30,8 @@ enum PX4_CUSTOM_MAIN_MODE {
     PX4_CUSTOM_MAIN_MODE_ACRO = 5,
     PX4_CUSTOM_MAIN_MODE_OFFBOARD = 6,
     PX4_CUSTOM_MAIN_MODE_STABILIZED = 7,
-    PX4_CUSTOM_MAIN_MODE_RATTITUDE = 8
+    PX4_CUSTOM_MAIN_MODE_RATTITUDE = 8,
+    PX4_CUSTOM_SUB_MODE_AUTO_RTL = 5
 };
 
 struct MissionPoint {
@@ -193,4 +195,81 @@ void send_mission_clear_all(int sock, const struct sockaddr_in& addr) {
     sendto(sock, buffer, len, 0, (struct sockaddr*)&addr, sizeof(addr));
 
     std::cout << "Mission clear all command sent" << std::endl;
+}
+void fly_command(int sock,sockaddr_in addr){
+    
+    // Auto mode'a geç
+    std::cout << "Setting AUTO mode..." << std::endl;
+    send_set_mode_command(sock, addr, PX4_CUSTOM_MAIN_MODE_AUTO);
+    sleep(2);
+    // Arm et
+    std::cout << "Arming drone..." << std::endl;
+    send_arm_command(sock, addr, true);
+    sleep(3);
+
+    // Mission'ı başlat
+    std::cout << "Starting mission..." << std::endl;
+    send_mission_start_command(sock, addr);
+
+    // Heartbeat'i devam ettir
+    std::cout << "Continuing heartbeat..." << std::endl;
+
+}
+
+void upload_mission(int sock,sockaddr_in addr){
+    
+    // Önceki mission'ı temizle
+    send_mission_clear_all(sock,addr);
+    sleep(2);
+
+    // Mission count gönder
+    std::cout << "Sending mission count..." << std::endl;
+    send_mission_count(sock, addr, mission_points.size());
+    sleep(2);
+
+    // Mission itemları gönder
+    for (size_t i = 0; i < mission_points.size(); i++) {
+        std::cout << "Sending mission item " << i << std::endl;
+        send_mission_item(sock, addr, i, mission_points[i]);
+        usleep(100000);
+    }
+    sleep(2);
+}
+
+void send_rtl_command(int sock, const struct sockaddr_in& addr) {
+    mavlink_message_t msg;
+    uint8_t buffer[300];
+
+    mavlink_command_long_t cmd = {0};
+    cmd.target_system = 1;
+    cmd.target_component = 1;
+    cmd.command = MAV_CMD_NAV_RETURN_TO_LAUNCH;
+    cmd.confirmation = 0;
+
+    cmd.param1 = 0; // Geçerli olabilir, kullanımına göre ayarlayın
+
+    mavlink_msg_command_long_encode(255, 0, &msg, &cmd);
+    uint16_t len = mavlink_msg_to_send_buffer(buffer, &msg);
+    sendto(sock, buffer, len, 0, (struct sockaddr*)&addr, sizeof(addr));
+
+    std::cout << "RTL command sent" << std::endl;
+}
+void set_mode_rtl(int sock, const struct sockaddr_in& addr) {
+    mavlink_message_t msg;
+    uint8_t buffer[300];
+
+    mavlink_command_long_t cmd = {0};
+    cmd.target_system = 1;
+    cmd.target_component = 1;
+    cmd.command = MAV_CMD_DO_SET_MODE;
+    cmd.confirmation = 0;
+    cmd.param1 = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+    cmd.param2 = PX4_CUSTOM_MAIN_MODE_AUTO;
+    cmd.param3 = PX4_CUSTOM_SUB_MODE_AUTO_RTL;
+
+    mavlink_msg_command_long_encode(255, 0, &msg, &cmd);
+    uint16_t len = mavlink_msg_to_send_buffer(buffer, &msg);
+    sendto(sock, buffer, len, 0, (struct sockaddr*)&addr, sizeof(addr));
+
+    std::cout << "Set mode to RTL command sent" << std::endl;
 }

@@ -19,7 +19,7 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             z-index: 1000;
             margin-top: 35%;
-            opacity:75%;
+            opacity: 75%;
         }
 
         .info-panel h3 {
@@ -40,6 +40,125 @@
             font-weight: bold;
             color: #000;
         }
+
+        .button-panel {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 15px;
+            width: 150px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        .takeoff-panel {
+            display:none;
+            position:absolute;
+            right:50%;
+            top:15px;
+            background: rgba(255,255,255,0.9);
+            border-radius:20%;
+            z-index:1000;
+        }
+
+        .takeoff-panel button {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 20%;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            width: 150px; /* Tüm butonların genişliği aynı */
+            height: 40px; /* Tüm butonların yüksekliği aynı */
+            font-size: 14px; /* Tüm butonların yazı boyutu aynı */
+            background-color: #d3d3d3; /* Griye yakın bir renk */
+            border: 1px solid #a9a9a9; /* Gri tonlarında kenarlık */
+            border-radius: 5px; /* Köşelerin yuvarlatılması */
+            color: #333; /* Yazı rengi */
+            cursor: pointer;
+            opacity: 100%;
+        }
+
+        .takeoff-panel button:hover{
+            background-color: red; /* Üzerine gelindiğinde daha koyu bir gri */
+            color:white;
+        }
+
+        .button-panel button {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            width: 150px; /* Tüm butonların genişliği aynı */
+            height: 40px; /* Tüm butonların yüksekliği aynı */
+            font-size: 14px; /* Tüm butonların yazı boyutu aynı */
+            background-color: #d3d3d3; /* Griye yakın bir renk */
+            border: 1px solid #a9a9a9; /* Gri tonlarında kenarlık */
+            border-radius: 5px; /* Köşelerin yuvarlatılması */
+            color: #333; /* Yazı rengi */
+            cursor: pointer;
+            opacity: 100%;
+        }
+
+        #close-modal-panel {
+            position:absolute;
+            top:5px;
+            right:5px;
+            width:35px;
+            height:35px;
+            border-radius:15%;
+            font-size:16px;
+            margin-bottom:25px;
+        }
+
+        .button-panel button:hover {
+            background-color: #bfbfbf; /* Üzerine gelindiğinde daha koyu bir gri */
+        }
+
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 50px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            display: none;
+            opacity: 95%;
+
+        }
+
+        .modal button {
+            display: block;
+            margin: 10px auto;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #FF4B4B;
+            color: white;
+            z-index:2000;
+            width:250px;
+            opacity:100%;
+
+        }
+
+        .modal button:hover {
+            background-color: #c73838;
+        }
     </style>
 </head>
 <script>
@@ -47,66 +166,96 @@
     let map;
     let marker;
     let line;
+    let lineReturn;
     let clickedCoordinates = [];
     let coordinatesWillSend = [];
     let canFly = false;
-      // List to store coordinates (starting with drone position)
-    function isCanFly(){
+    let isDrawEnabled = false; // Track the state of "Enable to Draw"
+    let first = true;
+    let upload = false;
+    let deleteMissions = false;
+
+    function getDeleteMission(){
+        return deleteMissions;
+    }
+    function resetDeleteMission(){
+        deleteMissions = false;
+    }
+
+    function isCanFly() {
         return canFly;
     }
-    function resetFly(){
+
+    function resetFly() {
         canFly = false;
     }
-    function getCoordinates(){
+
+    function getCoordinates() {
         return JSON.stringify(clickedCoordinates);
     }
-    function fly(){
+
+    function fly() {
         canFly = true;
     }
-    function deleteCoordinatesAndEnableFly(){
-        
+
+    function deleteCoordinatesAndEnableFly() {
+
     }
+
     function initializeMap() {
         map = L.map('map').setView([51.505, -0.09], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
         }).addTo(map);
         var droneIcon = L.icon({
-        iconUrl: 'drone.png',
-        //shadowUrl: 'drone.png',
+            iconUrl: 'drone.png',
 
-        iconSize:     [30, 30], // size of the icon
-        shadowSize:   [0, 0], // size of the shadow
-        iconAnchor:   [15, 15], // point of the icon which will correspond to marker's location
-        shadowAnchor: [4, 62],  // the same for the shadow
-        popupAnchor:  [-3, -76] // point from which the popup should open relative to the iconAnchor
+            iconSize: [30, 30], // size of the icon
+            shadowSize: [0, 0], // size of the shadow
+            iconAnchor: [15, 15], // point of the icon which will correspond to marker's location
+            shadowAnchor: [4, 62],  // the same for the shadow
+            popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
         });
-        marker = L.marker([0, 0], {icon: droneIcon}).addTo(map); // Create marker at the coordinates
+        marker = L.marker([0, 0], { icon: droneIcon }).addTo(map); // Create marker at the coordinates
         line = L.polyline(clickedCoordinates, { color: 'blue' }).addTo(map);
-        var first = true;
-            // Add click event listener to the map
+
+
             map.on('click', function (e) {
-                if(first){
-                clickedCoordinates.push({lat: marker.getLatLng().lat,lng: marker.getLatLng().lng})
-                first = false;
+                if (isDrawEnabled){
+                    if (first) {
+                        console.log("first");
+                        clickedCoordinates.push({ lat: marker.getLatLng().lat, lng: marker.getLatLng().lng });
+                        first = false;
+                    }
+                    const lat = e.latlng.lat;  // Get latitude of the clicked point
+                    const lng = e.latlng.lng;  // Get longitude of the clicked point
+
+                    // Add the clicked point to the coordinates list
+                    clickedCoordinates.push({ lat: lat, lng: lng });
+
+                    // Update the marker position to the clicked coordinates
+
+                    // Update the line with the new coordinates
+                    line.setLatLngs(clickedCoordinates);
+
+                    // Optionally, add a popup to the new marker
+                    marker.bindPopup("Last Waypoint: " + lat.toFixed(6) + ", " + lng.toFixed(6)).openPopup();
+
+                    console.log("Koordinatlar: Latitude: " + lat + ", Longitude: " + lng);
                 }
-                const lat = e.latlng.lat;  // Get latitude of the clicked point
-                const lng = e.latlng.lng;  // Get longitude of the clicked point
-
-                // Add the clicked point to the coordinates list
-                clickedCoordinates.push({ lat: lat, lng: lng });
-
-                // Update the marker position to the clicked coordinates
-
-                // Update the line with the new coordinates
-                line.setLatLngs(clickedCoordinates);
-
-                // Optionally, add a popup to the new marker
-                marker.bindPopup("Drone position: " + lat.toFixed(6) + ", " + lng.toFixed(6)).openPopup();
-
-                // Optionally, log the clicked coordinates to the console
-                console.log("Koordinatlar: Latitude: " + lat + ", Longitude: " + lng);
             });
+
+    }
+    
+    function toggleDrawButtons() {
+        isDrawEnabled = !isDrawEnabled;
+        const buttonsToToggle = ["enable-to-fly", "add-waypoint", "return-landing", "delete-mission","add-return-landing"];
+        buttonsToToggle.forEach(buttonId => {
+            const button = document.getElementById(buttonId);
+            button.style.display = isDrawEnabled ? "block" : "none";
+        });
+        const it = document.getElementById("enable-to-draw");
+        it.textContent = isDrawEnabled ? "Disable to Draw" : "Enable to Draw";
     }
 
     function setMapLocation(lat, lng, zoom) {
@@ -115,11 +264,11 @@
         }
     }
 
-
     function moveMarker(lat, lng) {
-      marker.setLatLng([lat, lng]);
-      console.log(lat+","+lng);
+        marker.setLatLng([lat, lng]);
+        console.log(lat + "," + lng);
     }
+
     function updateGpsData(latitude, longitude, altitude, fixType, satellitesVisible) {
         document.getElementById('gps-latitude').textContent = latitude.toFixed(6);
         document.getElementById('gps-longitude').textContent = longitude.toFixed(6);
@@ -133,20 +282,77 @@
         document.getElementById('battery-current').textContent = current;
         document.getElementById('battery-remaining').textContent = remaining;
     }
-    function deleteMarker(markerObj){
+
+    function deleteMarker(markerObj) {
 
     }
+    function deleteMission(){
+        //const modal = document.getElementById('modal');
+        console.log("ok");
+        modal.style.display = 'block'; // Modal paneli görünür yap
+    }
 
+    // Modal dışındaki bir yere tıklandığında kapatma özelliği (isteğe bağlı)
+    window.addEventListener('click', function (event) {
+        const modal = document.getElementById('modal');
+        if (event.target === modal) {
+            modal.style.display = 'none'; // Modal paneli gizle
+        }
+    });
+
+    function deleteLastWaypoint(){
+        modal.style.display = "none";
+        clickedCoordinates.pop(-1);
+        line.setLatLngs(clickedCoordinates);
+        if(clickedCoordinates.size == 0){
+            first = true;
+        }
+    }
+
+    function deleteAll(){
+        modal.style.display = "none";
+        clickedCoordinates = [];
+        line.setLatLngs(clickedCoordinates);
+        lineReturn.setLatLngs([]);
+        first = true;
+        deleteMissions = true;
+    }
+    function closeModal(){
+        modal.style.display = "none";
+    }
+    function enableToFly(){
+        const takeoffPanel = document.getElementById("takeoff-panel");
+        takeoffPanel.style.display = "block";
+        upload = true;
+    }
+    function getUpload(){
+        return upload;
+    }
+    function resetUpload(){
+        upload = false;
+    }
+    function addReturnWaypoint(){
+        lineReturn = L.polyline([], { color: 'red' }).addTo(map);
+        lineReturn.setLatLngs([clickedCoordinates[clickedCoordinates.length-1],clickedCoordinates[0]]);
+        autoRTL = true;
+    }
+    let autoRTL = false;
+    function getAutoRTL(){
+        return autoRTL;
+    }
+    function resetAutoRTL(){
+        autoRTL = false;
+    }
+    
 </script>
 <script>
+
 
 </script>
 <body>
 <div id="map" style="height: 100vh;"></div>
-
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <div class="info-panel">
-    <button onclick="fly()">fly</button>
     <h3>Drone Information</h3>
     <p>Latitude: <span id="gps-latitude">0.0</span></p>
     <p>Longitude: <span id="gps-longitude">0.0</span></p>
@@ -157,6 +363,22 @@
     <p>Voltage: <span id="battery-voltage">0.0</span> V</p>
     <p>Current: <span id="battery-current">0</span> A</p>
     <p>Remaining: <span id="battery-remaining">0</span>%</p>
+</div>
+<div class="button-panel">
+    <button id="enable-to-draw" onclick="toggleDrawButtons()">Enable to Draw</button>
+    <button id="enable-to-fly" onclick="enableToFly()" style="display: none;">Enable to Fly</button>
+    <button id="add-return-landing" onclick="addReturnWaypoint()" style="display: none;">Add Return Waypoint</button>    
+    <button id="add-waypoint" style="display: none;">Add Waypoint</button>
+    <button id="return-landing" style="display: none;">Return Landing</button>
+    <button id="delete-mission" onclick="deleteMission()" style="display: none;">Delete Mission</button>
+</div>
+<div id="modal" class="modal">
+    <button id="close-modal-panel" onclick="closeModal()" style="">X</button>
+    <button id="delete-last-waypoint" onclick="deleteLastWaypoint()">Delete Last Waypoint</button>
+    <button id="delete-all" onclick="deleteAll()">Delete All</button>
+</div>
+<div class="takeoff-panel" id="takeoff-panel">
+    <button id="takeoff" onclick="fly()">Run Mission</button>
 </div>
 </body>
 </html>

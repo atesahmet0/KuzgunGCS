@@ -44,6 +44,25 @@ private external fun isCanFly(): Boolean
 @JsName("resetFly")
 private external fun resetFly()
 
+@JsName("getUpload")
+private external fun getUpload() : Boolean
+
+@JsName("resetUpload")
+private external fun resetUpload()
+
+@JsName("getAutoRTL")
+private external fun getAutoRTL():Boolean
+
+@JsName("resetAutoRTL")
+private external fun resetAutoRTL()
+
+@JsName("getDeleteMission")
+private external fun getDeleteMission():Boolean
+
+@JsName("resetDeleteMission")
+private external fun resetDeleteMission()
+
+
 @OptIn(ExperimentalComposeUiApi::class)
 val mapView: MapView = WebMapView()
 private var socket: WebSocket? = null
@@ -103,12 +122,25 @@ fun connect() {
             }
             val coordinateList = convertCoordinates(getCoordinates())
             if(coordinateList.size > 0 && isCanFly()) {
-                coordinateList.forEach { i ->
-                    socket?.send(i)
-                }
+
                 socket?.send("fly")
                 println("ok")
                 resetFly()
+            }
+            if (getUpload()){
+                coordinateList.forEach { i ->
+                    socket?.send(i)
+                }
+                socket?.send("uploadMission")
+                resetUpload()
+            }
+            if (getAutoRTL()){
+                socket?.send("autoRTL")
+                resetAutoRTL()
+            }
+            if (getDeleteMission()){
+                socket?.send("deleteMissions")
+                resetDeleteMission()
             }
         }
 

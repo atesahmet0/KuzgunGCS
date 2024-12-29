@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KuzgunGCS</title>
+    <link type="text/css" rel="stylesheet" href="styles.css">
+    <script type="application/javascript" src="composeApp.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <style>
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 15px;
+            width: 300px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            margin-top: 35%;
+            opacity:75%;
+        }
+
+        .info-panel h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+
+        .info-panel p {
+            margin: 8px 0;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .info-panel span {
+            font-weight: bold;
+            color: #000;
+        }
+    </style>
+</head>
+<script>
+    // Global map variable
+    let map;
+    let marker;
+    let line;
+    let clickedCoordinates = [];
+    let coordinatesWillSend = [];
+    let canFly = false;
+      // List to store coordinates (starting with drone position)
+    function isCanFly(){
+        return canFly;
+    }
+    function resetFly(){
+        canFly = false;
+    }
+    function getCoordinates(){
+        return JSON.stringify(clickedCoordinates);
+    }
+    function fly(){
+        canFly = true;
+    }
+    function deleteCoordinatesAndEnableFly(){
+        
+    }
+    function initializeMap() {
+        map = L.map('map').setView([51.505, -0.09], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+        var droneIcon = L.icon({
+        iconUrl: 'drone.png',
+        //shadowUrl: 'drone.png',
+
+        iconSize:     [30, 30], // size of the icon
+        shadowSize:   [0, 0], // size of the shadow
+        iconAnchor:   [15, 15], // point of the icon which will correspond to marker's location
+        shadowAnchor: [4, 62],  // the same for the shadow
+        popupAnchor:  [-3, -76] // point from which the popup should open relative to the iconAnchor
+        });
+        marker = L.marker([0, 0], {icon: droneIcon}).addTo(map); // Create marker at the coordinates
+        line = L.polyline(clickedCoordinates, { color: 'blue' }).addTo(map);
+        var first = true;
+            // Add click event listener to the map
+            map.on('click', function (e) {
+                if(first){
+                clickedCoordinates.push({lat: marker.getLatLng().lat,lng: marker.getLatLng().lng})
+                first = false;
+                }
+                const lat = e.latlng.lat;  // Get latitude of the clicked point
+                const lng = e.latlng.lng;  // Get longitude of the clicked point
+
+                // Add the clicked point to the coordinates list
+                clickedCoordinates.push({ lat: lat, lng: lng });
+
+                // Update the marker position to the clicked coordinates
+
+                // Update the line with the new coordinates
+                line.setLatLngs(clickedCoordinates);
+
+                // Optionally, add a popup to the new marker
+                marker.bindPopup("Drone position: " + lat.toFixed(6) + ", " + lng.toFixed(6)).openPopup();
+
+                // Optionally, log the clicked coordinates to the console
+                console.log("Koordinatlar: Latitude: " + lat + ", Longitude: " + lng);
+            });
+    }
+
+    function setMapLocation(lat, lng, zoom) {
+        if (map) {
+            map.setView([lat, lng], zoom);
+        }
+    }
+
+
+    function moveMarker(lat, lng) {
+      marker.setLatLng([lat, lng]);
+      console.log(lat+","+lng);
+    }
+    function updateGpsData(latitude, longitude, altitude, fixType, satellitesVisible) {
+        document.getElementById('gps-latitude').textContent = latitude.toFixed(6);
+        document.getElementById('gps-longitude').textContent = longitude.toFixed(6);
+        document.getElementById('gps-altitude').textContent = altitude;
+        document.getElementById('gps-fix-type').textContent = fixType;
+        document.getElementById('gps-satellites').textContent = satellitesVisible;
+    }
+
+    function updateBatteryData(voltage, current, remaining) {
+        document.getElementById('battery-voltage').textContent = voltage.toFixed(2);
+        document.getElementById('battery-current').textContent = current;
+        document.getElementById('battery-remaining').textContent = remaining;
+    }
+    function deleteMarker(markerObj){
+
+    }
+
+</script>
+<script>
+
+</script>
+<body>
+<div id="map" style="height: 100vh;"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<div class="info-panel">
+    <button onclick="fly()">fly</button>
+    <h3>Drone Information</h3>
+    <p>Latitude: <span id="gps-latitude">0.0</span></p>
+    <p>Longitude: <span id="gps-longitude">0.0</span></p>
+    <p>Altitude: <span id="gps-altitude">0</span> m</p>
+    <p>Fix Type: <span id="gps-fix-type">0</span></p>
+    <p>Satellites Visible: <span id="gps-satellites">0</span></p>
+    <h3>Battery Status</h3>
+    <p>Voltage: <span id="battery-voltage">0.0</span> V</p>
+    <p>Current: <span id="battery-current">0</span> A</p>
+    <p>Remaining: <span id="battery-remaining">0</span>%</p>
+</div>
+</body>
+</html>
