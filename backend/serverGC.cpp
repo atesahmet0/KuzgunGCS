@@ -11,9 +11,13 @@
 #include <set>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
+#include "mission.hpp"
+#include <sstream>
+#include <string>
+using namespace std;
 
 #define UDP_PORT 14550
-
+bool received_fly_command = false;
 typedef websocketpp::server<websocketpp::config::asio> WebSocketServer;
 typedef std::set<websocketpp::connection_hdl, std::owner_less<websocketpp::connection_hdl>> ConnectionList;
 
@@ -145,12 +149,69 @@ void process_mavlink_message(mavlink_message_t &msg) {
             break;
         }
         default:
+            uint8_t system_id = msg.sysid;
+            uint8_t component_id = msg.compid;
+
+            std::cout << "Received message from system_id=" << (int)system_id
+              << ", component_id=" << (int)component_id << std::endl;
+
             std::cout << "Unknown message ID: " << msg.msgid << std::endl;
             break;
     }
 }
 
+void fly_command(int sock,sockaddr_in addr){
+    
+    // Önceki mission'ı temizle
+    send_mission_clear_all(sock,addr);
+    sleep(2);
+
+    // Mission count gönder
+    std::cout << "Sending mission count..." << std::endl;
+    send_mission_count(sock, addr, mission_points.size());
+    sleep(2);
+
+    // Mission itemları gönder
+    for (size_t i = 0; i < mission_points.size(); i++) {
+        std::cout << "Sending mission item " << i << std::endl;
+        send_mission_item(sock, addr, i, mission_points[i]);
+        usleep(100000);
+    }
+    sleep(2);
+
+    // Auto mode'a geç
+    std::cout << "Setting AUTO mode..." << std::endl;
+    send_set_mode_command(sock, addr, PX4_CUSTOM_MAIN_MODE_AUTO);
+    sleep(2);
+    // Arm et
+    std::cout << "Arming drone..." << std::endl;
+    send_arm_command(sock, addr, true);
+    sleep(3);
+
+    // Mission'ı başlat
+    std::cout << "Starting mission..." << std::endl;
+    send_mission_start_command(sock, addr);
+
+    // Heartbeat'i devam ettir
+    std::cout << "Continuing heartbeat..." << std::endl;
+
+}
+
 int main() {
+    //
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        std::cerr << "Socket creation failed" << std::endl;
+    }
+
+    // Adres yapılandırması
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(14580);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    //
+
     // WebSocket sunucusu ayarları
     server.clear_access_channels(websocketpp::log::alevel::all);
     server.set_access_channels(websocketpp::log::alevel::connect);
@@ -184,7 +245,6 @@ int main() {
     udp_addr.sin_family = AF_INET;
     udp_addr.sin_port = htons(UDP_PORT);
     udp_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-
     // UDP soketini bağla
     if (bind(udp_sockfd, (struct sockaddr *)&udp_addr, sizeof(udp_addr)) < 0) {
         std::cerr << "Error binding UDP socket" << std::endl;
@@ -195,12 +255,33 @@ int main() {
     // WebSocket sunucusunu başlat
     server.listen(4444);
     server.start_accept();
-
+    
     // WebSocket sunucusu için thread
     std::thread ws_thread([&]() {
         server.run();
     });
 
+    server.set_message_handler([](websocketpp::connection_hdl hdl, WebSocketServer::message_ptr msg) {
+        std::string payload = msg->get_payload();
+
+        stringstream ss(payload);
+        std::string item; 
+        if (payload == "fly") {
+            received_fly_command = true;
+        }
+        if(payload.find("waypoint") != std::string::npos){
+            std::vector<std::string> result;
+            std::stringstream ss(payload);
+            std::string item;
+
+            while (getline(ss, item, ',')) {
+                result.push_back(item);
+            }
+            MissionPoint ms = {stod(result[1]),stod(result[2])};
+            mission_points.push_back(ms);
+            
+        }
+    });
     // MAVLink mesajı ve buffer
     mavlink_message_t msg;
     unsigned char mavlink_buffer[1024];
@@ -222,7 +303,11 @@ int main() {
                 }
             }
         }
-
+        if (received_fly_command) {
+            fly_command(sock,addr);
+            received_fly_command = false; // Flag'i sıfırla
+        }
+        send_heartbeat(sock,addr);
         usleep(10000);  // 10ms bekle
     }
 

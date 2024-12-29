@@ -13,6 +13,9 @@ import org.gcs.clonifylabs.com.map.RcChannelsData
 import org.gcs.clonifylabs.com.map.TelemetryData
 import org.gcs.clonifylabs.com.map.WebMapView
 import org.w3c.dom.WebSocket
+import org.w3c.dom.events.Event
+import org.w3c.dom.events.MouseEvent
+import kotlin.js.JsName
 
 @JsName("setMapLocation")
 private external fun setMapLocation(latitude: Double, longitude: Double, zoom: Int)
@@ -32,6 +35,15 @@ private external fun updateGpsData(latitude:Double, longitude:Double, altitude:I
 @JsName("updateBatteryData")
 private external fun updateBatteryData(voltage:Double, current:Int, remaining:Int)
 
+@JsName("getCoordinates")
+private external fun getCoordinates() : String
+
+@JsName("isCanFly")
+private external fun isCanFly(): Boolean
+
+@JsName("resetFly")
+private external fun resetFly()
+
 @OptIn(ExperimentalComposeUiApi::class)
 val mapView: MapView = WebMapView()
 private var socket: WebSocket? = null
@@ -43,7 +55,22 @@ public var telemetryData: TelemetryData = TelemetryData(
     RcChannelsData(),
     BatteryData()
 )
+fun convertCoordinates(coordinatesJson: String): List<String> {
+    val coordinates = mutableListOf<String>()
+    val pattern = """"lat":([\d.]+),"lng":([\d.]+)""".toRegex()
+    val matches = pattern.findAll(coordinatesJson)
+
+    matches.forEach { match ->
+        val lat = match.groupValues[1]
+        val lng = match.groupValues[2]
+        coordinates.add("waypoint,$lat,$lng")
+    }
+
+    return coordinates
+}
+
 fun connect() {
+    var enableFly = true
     try {
         socket = WebSocket("ws://localhost:4444")
 
@@ -74,6 +101,15 @@ fun connect() {
             } catch (e: Exception) {
                 println("Veri işleme hatası: ${e.message}")
             }
+            val coordinateList = convertCoordinates(getCoordinates())
+            if(coordinateList.size > 0 && isCanFly()) {
+                coordinateList.forEach { i ->
+                    socket?.send(i)
+                }
+                socket?.send("fly")
+                println("ok")
+                resetFly()
+            }
         }
 
         socket?.onclose = { event ->
@@ -98,19 +134,20 @@ fun disconnect() {
 
 fun isConnected(): Boolean = isConnected
 
-
 fun main() {
 
     // Initialize the map
     mapView.initialize()
 
     // Set the location to New York City
-    mapView.setLocation(40.7128, -74.0060, 12)
+    mapView.setLocation(47.352780, 8.342743, 12)
 
-    mapView.goToMarker(40.711400, -74.008654);
+    mapView.goToMarker(47.352780, 8.342743);
 
     connect()
     println(telemetryData.gps.latitude)
+
+
 
 }
 /*fun main() {

@@ -46,6 +46,26 @@
     // Global map variable
     let map;
     let marker;
+    let line;
+    let clickedCoordinates = [];
+    let coordinatesWillSend = [];
+    let canFly = false;
+      // List to store coordinates (starting with drone position)
+    function isCanFly(){
+        return canFly;
+    }
+    function resetFly(){
+        canFly = false;
+    }
+    function getCoordinates(){
+        return JSON.stringify(clickedCoordinates);
+    }
+    function fly(){
+        canFly = true;
+    }
+    function deleteCoordinatesAndEnableFly(){
+        
+    }
     function initializeMap() {
         map = L.map('map').setView([51.505, -0.09], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -62,6 +82,31 @@
         popupAnchor:  [-3, -76] // point from which the popup should open relative to the iconAnchor
         });
         marker = L.marker([0, 0], {icon: droneIcon}).addTo(map); // Create marker at the coordinates
+        line = L.polyline(clickedCoordinates, { color: 'blue' }).addTo(map);
+        var first = true;
+            // Add click event listener to the map
+            map.on('click', function (e) {
+                if(first){
+                clickedCoordinates.push({lat: marker.getLatLng().lat,lng: marker.getLatLng().lng})
+                first = false;
+                }
+                const lat = e.latlng.lat;  // Get latitude of the clicked point
+                const lng = e.latlng.lng;  // Get longitude of the clicked point
+
+                // Add the clicked point to the coordinates list
+                clickedCoordinates.push({ lat: lat, lng: lng });
+
+                // Update the marker position to the clicked coordinates
+
+                // Update the line with the new coordinates
+                line.setLatLngs(clickedCoordinates);
+
+                // Optionally, add a popup to the new marker
+                marker.bindPopup("Drone position: " + lat.toFixed(6) + ", " + lng.toFixed(6)).openPopup();
+
+                // Optionally, log the clicked coordinates to the console
+                console.log("Koordinatlar: Latitude: " + lat + ", Longitude: " + lng);
+            });
     }
 
     function setMapLocation(lat, lng, zoom) {
@@ -93,11 +138,15 @@
     }
 
 </script>
+<script>
+
+</script>
 <body>
 <div id="map" style="height: 100vh;"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <div class="info-panel">
+    <button onclick="fly()">fly</button>
     <h3>Drone Information</h3>
     <p>Latitude: <span id="gps-latitude">0.0</span></p>
     <p>Longitude: <span id="gps-longitude">0.0</span></p>
