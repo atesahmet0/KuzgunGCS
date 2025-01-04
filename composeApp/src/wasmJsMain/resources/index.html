@@ -166,7 +166,9 @@
     let map;
     let marker;
     let line;
+    let droneRouteLine;
     let lineReturn;
+    let droneRoute = [];
     let clickedCoordinates = [];
     let coordinatesWillSend = [];
     let canFly = false;
@@ -174,6 +176,11 @@
     let first = true;
     let upload = false;
     let deleteMissions = false;
+    let autoRTL = false;
+    let RTL = false;
+    let mission = true;
+    let refresh = true;
+    
 
     function getDeleteMission(){
         return deleteMissions;
@@ -197,6 +204,12 @@
     function fly() {
         canFly = true;
     }
+    function getRefresh(){
+        return refresh;
+    } 
+    function resetRefresh(){
+        refresh = false;
+    }
 
     function deleteCoordinatesAndEnableFly() {
 
@@ -217,6 +230,8 @@
             popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
         });
         marker = L.marker([0, 0], { icon: droneIcon }).addTo(map); // Create marker at the coordinates
+        droneRouteLine = L.polyline([], { color: 'green' }).addTo(map);
+        lineReturn = L.polyline([], { color: 'red' }).addTo(map);
         line = L.polyline(clickedCoordinates, { color: 'blue' }).addTo(map);
 
 
@@ -241,15 +256,19 @@
                     // Optionally, add a popup to the new marker
                     marker.bindPopup("Last Waypoint: " + lat.toFixed(6) + ", " + lng.toFixed(6)).openPopup();
 
-                    console.log("Koordinatlar: Latitude: " + lat + ", Longitude: " + lng);
                 }
             });
 
     }
+    function drawDroneRoute(){
+        var currentLatLng = marker.getLatLng();
+        droneRoute.push(currentLatLng);
+        droneRouteLine.setLatLngs(droneRoute);
+    }
     
     function toggleDrawButtons() {
         isDrawEnabled = !isDrawEnabled;
-        const buttonsToToggle = ["enable-to-fly", "add-waypoint", "return-landing", "delete-mission","add-return-landing"];
+        const buttonsToToggle = ["enable-to-fly", "add-waypoint", "return-landing", "delete-mission","add-return-landing","get-mission"];
         buttonsToToggle.forEach(buttonId => {
             const button = document.getElementById(buttonId);
             button.style.display = isDrawEnabled ? "block" : "none";
@@ -266,7 +285,6 @@
 
     function moveMarker(lat, lng) {
         marker.setLatLng([lat, lng]);
-        console.log(lat + "," + lng);
     }
 
     function updateGpsData(latitude, longitude, altitude, fixType, satellitesVisible) {
@@ -275,6 +293,7 @@
         document.getElementById('gps-altitude').textContent = altitude;
         document.getElementById('gps-fix-type').textContent = fixType;
         document.getElementById('gps-satellites').textContent = satellitesVisible;
+        drawDroneRoute();
     }
 
     function updateBatteryData(voltage, current, remaining) {
@@ -311,8 +330,9 @@
 
     function deleteAll(){
         modal.style.display = "none";
+        droneRoute = [];
         clickedCoordinates = [];
-        line.setLatLngs(clickedCoordinates);
+        line.setLatLngs([]);
         lineReturn.setLatLngs([]);
         first = true;
         deleteMissions = true;
@@ -321,6 +341,7 @@
         modal.style.display = "none";
     }
     function enableToFly(){
+        droneRoute = [];
         const takeoffPanel = document.getElementById("takeoff-panel");
         takeoffPanel.style.display = "block";
         upload = true;
@@ -332,18 +353,56 @@
         upload = false;
     }
     function addReturnWaypoint(){
-        lineReturn = L.polyline([], { color: 'red' }).addTo(map);
+        
         lineReturn.setLatLngs([clickedCoordinates[clickedCoordinates.length-1],clickedCoordinates[0]]);
         autoRTL = true;
     }
-    let autoRTL = false;
+    
     function getAutoRTL(){
         return autoRTL;
     }
     function resetAutoRTL(){
         autoRTL = false;
     }
-    
+    function getRTL(){
+        return RTL;
+    }
+    function resetRTL(){
+        RTL = false;
+    }
+    function returnLanding(){
+        RTL = true;
+    }
+    function getMission() {
+        return mission;
+    }
+    function resetMission() {
+        mission = false;
+    }
+    function uploadWaypointData(lat,lng,alt,command){
+        if(command == 20){
+            if(clickedCoordinates.length > 1){
+                addReturnWaypoint();
+                enableToFly();
+                first = false;
+            }else{
+                clickedCoordinates = [];
+                first = true;
+            }
+        }else {
+            clickedCoordinates.push({ lat: lat, lng: lng });
+            line.setLatLngs(clickedCoordinates);
+            console.log(clickedCoordinates);
+            first = false;
+        }
+    }
+    function getUploadedMission(){
+        clickedCoordinates = [];
+        line.setLatLngs([]);
+        lineReturn.setLatLngs([]);
+        mission = true;
+        
+    }
 </script>
 <script>
 
@@ -368,9 +427,10 @@
     <button id="enable-to-draw" onclick="toggleDrawButtons()">Enable to Draw</button>
     <button id="enable-to-fly" onclick="enableToFly()" style="display: none;">Enable to Fly</button>
     <button id="add-return-landing" onclick="addReturnWaypoint()" style="display: none;">Add Return Waypoint</button>    
-    <button id="add-waypoint" style="display: none;">Add Waypoint</button>
-    <button id="return-landing" style="display: none;">Return Landing</button>
+    <button id="add-waypoint" style="display: none;">Add Waypoint From Text</button>
+    <button id="return-landing" style="display: none; " onclick="returnLanding()">Return Landing</button>
     <button id="delete-mission" onclick="deleteMission()" style="display: none;">Delete Mission</button>
+    <button id="get-mission" onclick="getUploadedMission()" style="display: none;">Get Mission</button>
 </div>
 <div id="modal" class="modal">
     <button id="close-modal-panel" onclick="closeModal()" style="">X</button>

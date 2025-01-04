@@ -14,14 +14,19 @@
 #include "mission.hpp"
 #include <sstream>
 #include <string>
+#include "getMission.hpp"
 using namespace std;
 
 #define UDP_PORT 14550
 bool received_fly_command = false;
 bool recieved_mission_upload = false;
 bool recieved_auto_RTL = false;
+bool recieved_RTL = false;
+bool recieved_mission = true;
 typedef websocketpp::server<websocketpp::config::asio> WebSocketServer;
 typedef std::set<websocketpp::connection_hdl, std::owner_less<websocketpp::connection_hdl>> ConnectionList;
+
+string currentMissionJsonStr = "{}";
 
 // WebSocket sunucusu ve bağlantı listesi
 WebSocketServer server;
@@ -37,7 +42,8 @@ mavlink_battery_status_t latest_battery_status;
 // GPS verilerini JSON formatında dönüştürme
 std::string gps_data_to_json(const mavlink_gps_raw_int_t &gps_raw) {
     std::stringstream json_data;
-    json_data << "{"
+    json_data << std::fixed << std::setprecision(7) 
+              <<"{"
               << "\"latitude\": " << gps_raw.lat / 1e7 << ", "
               << "\"longitude\": " << gps_raw.lon / 1e7 << ", "
               << "\"altitude\": " << gps_raw.alt / 1000 << ", "
@@ -111,7 +117,8 @@ std::string all_data_to_json() {
               << "\"imu\": " << imu_data_to_json(latest_imu_data) << ", "
               << "\"heartbeat\": " << heartbeat_to_json(latest_heartbeat) << ", "
               << "\"rc_channels\": " << rc_channels_data_to_json(latest_rc_channels) << ", "
-              << "\"battery\": " << battery_data_to_json(latest_battery_status)
+              << "\"battery\": " << battery_data_to_json(latest_battery_status) << ", "
+              << "\"current_mission\": " << currentMissionJsonStr
               << "}";
     return json_data.str();
 }
@@ -140,7 +147,6 @@ void process_mavlink_message(mavlink_message_t &msg,int sock,sockaddr_in addr) {
         }
         case MAVLINK_MSG_ID_HEARTBEAT: {
             mavlink_msg_heartbeat_decode(&msg, &latest_heartbeat);
-            cout<<"heartbeat custom = "<<latest_heartbeat.custom_mode<<endl;
             if (latest_heartbeat.custom_mode == 50593792 && recieved_auto_RTL) // mav_mode_loiter
             {
                 set_mode_rtl(sock,addr);
@@ -157,13 +163,7 @@ void process_mavlink_message(mavlink_message_t &msg,int sock,sockaddr_in addr) {
             break;
         }
         default:
-            uint8_t system_id = msg.sysid;
-            uint8_t component_id = msg.compid;
-
-            std::cout << "Received message from system_id=" << (int)system_id
-              << ", component_id=" << (int)component_id  << std::endl;
-
-            std::cout << "Unknown message ID: " << msg.msgid << std::endl;
+            
             break;
     }
 }
@@ -266,6 +266,12 @@ int main() {
         if(payload == "deleteMissions"){
             mission_points = {};
         }
+        if(payload == "RTL"){
+            recieved_RTL = true;
+        }
+        if(payload == "getMission"){
+            recieved_mission = true;
+        }
     });
     // MAVLink mesajı ve buffer
     mavlink_message_t msg;
@@ -294,10 +300,32 @@ int main() {
         }
         if (received_fly_command) {
             fly_command(sock,addr);
-            received_fly_command = false; // Flag'i sıfırla
+            received_fly_command = false;
         }
+        if(recieved_RTL){
+            send_rtl_command(sock,addr);
+            recieved_RTL = false;
+        }
+        if (recieved_mission)
+        {
+            try {
+                UDPMissionDownloader downloader("127.0.0.1", 14580, 14555);
+                
+                if (downloader.downloadMission()) {
+                    std::cout << "Görev başarıyla indirildi!" << std::endl;
+                    currentMissionJsonStr = downloader.getMissionItemsJson();
+                } else {
+                    std::cout << "Görev indirme başarısız!" << std::endl;
+                }
+            }
+            catch (const std::exception& e) {
+                std::cerr << "Hata: " << e.what() << std::endl;
+            }
+            recieved_mission = false;
+            cout<<currentMissionJsonStr;
+        }   
         send_heartbeat(sock,addr);
-        usleep(10000);  // 10ms bekle
+        usleep(10000);
     }
 
     // Temizlik

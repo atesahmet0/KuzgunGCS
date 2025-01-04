@@ -43,24 +43,47 @@ data class BatteryData(
     var current: Int = 0,
     var remaining: Int = 0
 )
+data class MissionItem(
+    var seq: Int = 0,
+    var frame: Int = 0,
+    var command: Int = 0,
+    var current: Int = 0,
+    var autocontinue: Int = 0,
+    var param1: Double = 0.0,
+    var param2: Double = 0.0,
+    var param3: Double = 0.0,
+    var param4: Double = Double.NaN,
+    var x: Double = 0.0,
+    var y: Double = 0.0,
+    var z: Double = 0.0,
+    var mission_type: Int = 0
+)
+
+data class CurrentMissionData(
+    var mission_items: ArrayList<MissionItem> = ArrayList()
+)
+
 
 data class TelemetryData(
     val gps: GpsData = GpsData(),
     val imu: ImuData = ImuData(),
     val heartbeat: HeartbeatData = HeartbeatData(),
     val rcChannels: RcChannelsData = RcChannelsData(),
-    val battery: BatteryData = BatteryData()
+    val battery: BatteryData = BatteryData(),
+    val current_mission: CurrentMissionData = CurrentMissionData()
 )
 
 class DroneDataParser {
     companion object {
         fun parseJson(jsonString: String): TelemetryData {
+            var cleanJsonString = jsonString.replace("\\n", "").replace("\n", "")
+            cleanJsonString = jsonString.replace(" ", "")
             val gps = GpsData()
             val imu = ImuData()
             val heartbeat = HeartbeatData()
             val rcChannels = RcChannelsData()
             val battery = BatteryData()
-
+            val current_mission = CurrentMissionData()
             try {
                 // GPS verilerini çıkar
                 val gpsMatch = Regex("\"gps\":\\s*\\{([^}]+)\\}").find(jsonString)
@@ -173,11 +196,77 @@ class DroneDataParser {
                         battery.remaining = it.toInt()
                     }
                 }
+                // Current Mission verilerini çıkar
+                val currentMissionRegex = "\"current_mission\":\\s*\\{(.*?)\\}(?=\\s*\\})".toRegex(RegexOption.DOT_MATCHES_ALL)
+                val currentMissionMatch = currentMissionRegex.find(jsonString)
+
+                currentMissionMatch?.groupValues?.get(1)?.let { currentMissionContent ->
+
+                    // Doğrudan mission items içeriğini al
+                    val itemsContent = currentMissionContent.substringAfter("[").substringBefore("]")
+
+                    // Her bir item'ı ayır
+                    val items = itemsContent.split("},{").map {
+                        it.trim().removeSurrounding("{", "}")
+                    }
+
+                    items.forEach { itemContent ->
+                        val missionItem = MissionItem()
+
+                        try {
+                            // Parse işlemleri
+                            Regex("\"seq\":(\\d+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.seq = it.toInt()
+                            }
+                            Regex("\"frame\":(\\d+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.frame = it.toInt()
+                            }
+                            Regex("\"command\":(\\d+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.command = it.toInt()
+                            }
+                            Regex("\"current\":(\\d+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.current = it.toInt()
+                            }
+                            Regex("\"autocontinue\":(\\d+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.autocontinue = it.toInt()
+                            }
+                            Regex("\"param1\":([\\d.-]+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.param1 = it.toDouble()
+                            }
+                            Regex("\"param2\":([\\d.-]+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.param2 = it.toDouble()
+                            }
+                            Regex("\"param3\":([\\d.-]+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.param3 = it.toDouble()
+                            }
+                            Regex("\"param4\":(nan|[\\d.-]+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.param4 = if (it == "nan") Double.NaN else it.toDouble()
+                            }
+                            Regex("\"x\":([\\d.-]+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.x = it.toDouble()
+                            }
+                            Regex("\"y\":([\\d.-]+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.y = it.toDouble()
+                            }
+                            Regex("\"z\":([\\d.-]+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.z = it.toDouble()
+                            }
+                            Regex("\"mission_type\":(\\d+)").find(itemContent)?.groupValues?.get(1)?.let {
+                                missionItem.mission_type = it.toInt()
+                            }
+
+                            current_mission.mission_items.add(missionItem)
+
+                        } catch (e: Exception) {
+                            println("Error parsing item: ${e.message}")
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 println("Parse hatası: ${e.message}")
             }
 
-            return TelemetryData(gps, imu, heartbeat, rcChannels, battery)
+            return TelemetryData(gps, imu, heartbeat, rcChannels, battery,current_mission)
         }
     }
 }

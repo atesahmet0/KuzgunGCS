@@ -1,7 +1,9 @@
 package org.gcs.clonifylabs.com
 
 import androidx.compose.ui.ExperimentalComposeUiApi
+import kotlinx.browser.window
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.internal.ThreadSafeHeap
 import org.gcs.clonifylabs.com.map.BatteryData
 import org.gcs.clonifylabs.com.map.DroneDataClient
 import org.gcs.clonifylabs.com.map.DroneDataParser
@@ -12,6 +14,7 @@ import org.gcs.clonifylabs.com.map.MapView
 import org.gcs.clonifylabs.com.map.RcChannelsData
 import org.gcs.clonifylabs.com.map.TelemetryData
 import org.gcs.clonifylabs.com.map.WebMapView
+import org.jetbrains.compose.resources.getResourceUri
 import org.w3c.dom.WebSocket
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
@@ -62,6 +65,26 @@ private external fun getDeleteMission():Boolean
 @JsName("resetDeleteMission")
 private external fun resetDeleteMission()
 
+@JsName("getRTL")
+private external fun getRTL() : Boolean
+
+@JsName("resetRTL")
+private external fun resetRTL()
+
+@JsName("getMission")
+private external fun getMission() :Boolean
+
+@JsName("uploadWaypointData")
+private external fun uploadWaypointData(lat: Double,lng: Double,altitude: Double,command : Int)
+
+@JsName("resetMission")
+private external fun resetMission()
+
+@JsName("getRefresh")
+private external fun getRefresh() : Boolean
+
+@JsName("resetRefresh")
+private external fun resetRefresh()
 
 @OptIn(ExperimentalComposeUiApi::class)
 val mapView: MapView = WebMapView()
@@ -90,6 +113,7 @@ fun convertCoordinates(coordinatesJson: String): List<String> {
 
 fun connect() {
     var enableFly = true
+    var isFirstGetMission = true
     try {
         socket = WebSocket("ws://localhost:4444")
 
@@ -102,7 +126,6 @@ fun connect() {
             val jsonString = event.data.toString()
             try {
                 telemetryData = DroneDataParser.parseJson(jsonString)
-                println("AAAAAAAAAAA $telemetryData")
                 mapView.goToMarker(telemetryData.gps.latitude, telemetryData.gps.longitude)
                 updateBatteryData(
                     telemetryData.battery.voltage,
@@ -116,11 +139,27 @@ fun connect() {
                     telemetryData.gps.fix_type,
                     telemetryData.gps.satellites_visible
                 )
+                if (getMission()){
+                    if(isFirstGetMission){
+                        isFirstGetMission = false;
+                        telemetryData.current_mission.mission_items.forEach { waypoint ->
+                            uploadWaypointData(waypoint.x,waypoint.y,waypoint.z,waypoint.command)
+                        }
+                    }else{
+                        socket?.send("getMission")
+                        window.setTimeout("",2000)
+                        telemetryData.current_mission.mission_items.forEach { waypoint ->
+                            uploadWaypointData(waypoint.x,waypoint.y,waypoint.z,waypoint.command)
+                        }
+                    }
+
+                    resetMission()
+                }
 
             } catch (e: Exception) {
                 println("Veri işleme hatası: ${e.message}")
             }
-            val coordinateList = convertCoordinates(getCoordinates())
+            var coordinateList = convertCoordinates(getCoordinates())
             if(coordinateList.size > 0 && isCanFly()) {
 
                 socket?.send("fly")
@@ -141,6 +180,15 @@ fun connect() {
             if (getDeleteMission()){
                 socket?.send("deleteMissions")
                 resetDeleteMission()
+            }
+            if (getRTL()){
+                socket?.send("RTL")
+                resetRTL()
+            }
+            if (getRefresh()){
+                coordinateList = mutableListOf()
+                //socket?.send("getMission")
+                resetRefresh()
             }
         }
 
@@ -177,7 +225,6 @@ fun main() {
     mapView.goToMarker(47.352780, 8.342743);
 
     connect()
-    println(telemetryData.gps.latitude)
 
 
 
