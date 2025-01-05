@@ -8,3 +8,95 @@ html, body {
 #map{
     height: 45%;
 }
+#waypoint-navigation-panel {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 260px; /* Boyutu küçülttük */
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 8px;
+    padding: 10px; /* İç boşluğu azalttık */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+#waypoint-navigation-panel h2,
+#waypoint-navigation-panel h3,
+#waypoint-navigation-panel h4 {
+    margin-top: 0;
+    color: #333333;
+    font-size: 16px; /* Başlık boyutunu küçülttük */
+}
+
+#current-coordinates,
+#waypoints-list {
+    margin-bottom: 15px;
+}
+
+.navigation-item {
+    background-color: #f9f9f9;
+    border: 1px solid #dddddd;
+    border-radius: 5px;
+    padding: 8px; /* İç boşluğu azalttık */
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.navigation-item h4 {
+    margin-top: 0;
+    color: #555555;
+    font-size: 14px; /* Başlık boyutunu küçülttük */
+    align-self: center;
+}
+
+.navigation-item label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555555;
+    font-size: 12px; /* Yazı boyutunu küçülttük */
+}
+
+.navigation-item input[type="text"] {
+    width: calc(100% - 10px);
+    padding: 4px;
+    margin-bottom: 8px;
+    border: 1px solid #bbbbbb;
+    border-radius: 4px;
+    font-size: 12px; /* Yazı boyutunu küçülttük */
+}
+
+.waypoint-coordinates label {
+    width: 48%;
+    display: inline-block;
+}
+
+#show-waypoint {
+    position:inherit;
+    top: 50%;
+    right:50%;
+}
+
+#waypoint-info {
+    display: none;
+}
+
+.waypoint-coordinates label:first-child {
+    margin-right: 4%;
+}
+
+#return-to-launch-button {
+    width: 100%;
+    padding: 8px;
+    background-color: #dddddd;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #333333;
+    font-weight: bold;
+    font-size: 14px; /* Yazı boyutunu küçülttük */
+}
+
+#return-to-launch-button:hover {
+    background-color: #cccccc;
+}

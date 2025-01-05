@@ -42,13 +42,15 @@
         }
 
         .button-panel {
+            display: flex; /* Use Flexbox */
+            flex-direction: row; /* Default is row, so this is optional */
             position: absolute;
-            top: 50%;
-            right: 10px;
+            top: 90%;
+            left: 20%;
             background: rgba(255, 255, 255, 0.9);
             border-radius: 8px;
             padding: 15px;
-            width: 150px;
+            width: auto;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             z-index: 1000;
         }
@@ -91,16 +93,16 @@
 
         .button-panel button {
             display: block;
-            margin: 10px 0;
+            margin: 0px 10px;
             padding: 10px;
-            font-size: 16px;
+            font-size: 13px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             background-color: #007BFF;
             color: white;
             width: 150px; /* Tüm butonların genişliği aynı */
-            height: 40px; /* Tüm butonların yüksekliği aynı */
+            height: 50px; /* Tüm butonların yüksekliği aynı */
             font-size: 14px; /* Tüm butonların yazı boyutu aynı */
             background-color: #d3d3d3; /* Griye yakın bir renk */
             border: 1px solid #a9a9a9; /* Gri tonlarında kenarlık */
@@ -251,6 +253,7 @@
                     // Update the marker position to the clicked coordinates
 
                     // Update the line with the new coordinates
+                    addWaypoint(clickedCoordinates.length-1,lat,lng,0);
                     line.setLatLngs(clickedCoordinates);
 
                     // Optionally, add a popup to the new marker
@@ -326,6 +329,8 @@
         if(clickedCoordinates.size == 0){
             first = true;
         }
+        const waypointsList = document.getElementById('waypoints-list');
+        waypointsList.removeChild(waypointsList.lastChild);
     }
 
     function deleteAll(){
@@ -336,6 +341,10 @@
         lineReturn.setLatLngs([]);
         first = true;
         deleteMissions = true;
+        const waypointsList = document.getElementById('waypoints-list');
+        waypointsList.innerHTML = '';
+        const RTL = document.getElementById('RTL');
+        RTL.innerHTML = '';
     }
     function closeModal(){
         modal.style.display = "none";
@@ -353,9 +362,12 @@
         upload = false;
     }
     function addReturnWaypoint(){
+        if(lineReturn.getLatLngs().length == 0){
+            lineReturn.setLatLngs([clickedCoordinates[clickedCoordinates.length-1],clickedCoordinates[0]]);
+            autoRTL = true;
+            addReturnToLaunch();
+        }
         
-        lineReturn.setLatLngs([clickedCoordinates[clickedCoordinates.length-1],clickedCoordinates[0]]);
-        autoRTL = true;
     }
     
     function getAutoRTL(){
@@ -383,6 +395,7 @@
         if(command == 20){
             if(clickedCoordinates.length > 1){
                 addReturnWaypoint();
+                addReturnToLaunch();
                 enableToFly();
                 first = false;
             }
@@ -397,23 +410,183 @@
         if(clickedCoordinates.length <=1){
                 clickedCoordinates = [];
                 first = true;
+        }else{
+            for(let i = 1; i < clickedCoordinates.length; i++){
+                addWaypoint(i,clickedCoordinates[i].lat,clickedCoordinates[i].lng,0);
+            }
         }
     }
     function getUploadedMission(){
         clickedCoordinates = [];
         line.setLatLngs([]);
         lineReturn.setLatLngs([]);
+        const waypointsList = document.getElementById('waypoints-list');
+        waypointsList.innerHTML = '';
+        const RTL = document.getElementById('RTL');
+        RTL.innerHTML = '';
         mission = true;
         
     }
-</script>
-<script>
+    function navItemClicked(x) {
+        const waypoint = document.getElementById("waypoint-info-"+x);
+        if(waypoint.style.display == "block"){
+            waypoint.style.display = "none";
+        }else{
+            waypoint.style.display = "block";
+        }
+    }
 
 
+    //let waypointCount = 0; // Waypoint sayacı
+    function addWaypoint(waypointCount,lat,lng,alt) {
+        //waypointCount++; // Sayaç değerini artır
+
+        // Yeni waypoint div'i oluştur
+        const waypointDiv = document.createElement('div');
+        waypointDiv.className = 'navigation-item';
+        waypointDiv.id = `navigation-item-${waypointCount}`;
+
+
+        // Waypoint başlığını oluştur
+        const waypointHeader = document.createElement('h4');
+        waypointHeader.textContent = `Waypoint ${waypointCount}`;
+        waypointDiv.appendChild(waypointHeader);
+        waypointHeader.onclick = function() {
+            navItemClicked(waypointCount);
+        }
+
+        // Waypoint bilgilerini içeren div
+        const waypointInfoDiv = document.createElement('div');
+        waypointInfoDiv.style.display = 'none';
+        waypointInfoDiv.className = 'waypoint-info';
+        waypointInfoDiv.id = `waypoint-info-${waypointCount}`;
+
+        // Altitude Label ve Input
+        const altitudeLabel = document.createElement('label');
+        altitudeLabel.textContent = 'Altitude:';
+        const altitudeInput = document.createElement('input');
+        altitudeInput.type = 'text';
+        altitudeInput.name = `altitude-${waypointCount}`;
+        altitudeInput.placeholder = 'Metre';
+        altitudeInput.value = alt;
+        altitudeLabel.appendChild(altitudeInput);
+        waypointInfoDiv.appendChild(altitudeLabel);
+
+        // Speed Label ve Input
+        const speedLabel = document.createElement('label');
+        speedLabel.textContent = 'Speed:';
+        const speedInput = document.createElement('input');
+        speedInput.type = 'text';
+        speedInput.name = `speed-${waypointCount}`;
+        speedInput.placeholder = 'km/h';
+        speedLabel.appendChild(speedInput);
+        waypointInfoDiv.appendChild(speedLabel);
+
+        // Koordinatlar Div'i
+        const coordinatesDiv = document.createElement('div');
+        coordinatesDiv.className = 'waypoint-coordinates';
+
+        // Latitude Label ve Input
+        const latitudeLabel = document.createElement('label');
+        latitudeLabel.textContent = 'Latitude:';
+        const latitudeInput = document.createElement('input');
+        latitudeInput.type = 'text';
+        latitudeInput.name = `latitude-${waypointCount}`;
+        latitudeInput.placeholder = 'Enlem';
+        latitudeInput.value = lat;
+        latitudeLabel.appendChild(latitudeInput);
+        coordinatesDiv.appendChild(latitudeLabel);
+
+        // Longitude Label ve Input
+        const longitudeLabel = document.createElement('label');
+        longitudeLabel.textContent = 'Longitude:';
+        const longitudeInput = document.createElement('input');
+        longitudeInput.type = 'text';
+        longitudeInput.name = `longitude-${waypointCount}`;
+        longitudeInput.placeholder = 'Boylam';
+        longitudeInput.value = lng;
+        longitudeLabel.appendChild(longitudeInput);
+        coordinatesDiv.appendChild(longitudeLabel);
+
+        waypointInfoDiv.appendChild(coordinatesDiv);
+        waypointDiv.appendChild(waypointInfoDiv);
+
+        // Waypointler listesini al ve yeni waypoint'i ekle
+        const waypointsList = document.getElementById('waypoints-list');
+        waypointsList.appendChild(waypointDiv);
+    }
+
+    function addReturnToLaunch(){
+        const RTLDiv = document.createElement('div');
+        RTLDiv.className = 'navigation-item';
+
+        const RTLHeader = document.createElement('h4');
+        RTLHeader.textContent = 'Return To Launch';
+        RTLDiv.appendChild(RTLHeader);
+
+        const RTL = document.getElementById('RTL');
+        RTL.appendChild(RTLDiv);
+    }
 </script>
 <body>
 <div id="map" style="height: 100vh;"></div>
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <h2>Start</h2>
+    <div class="current-coordinates">
+        <p>Mevcut Koordinatlar:</p>
+        <p>Enlem: <span id="current-latitude">--</span></p>
+        <p>Boylam: <span id="current-longitude">--</span></p>
+    </div>
+
+    <div class="waypoints">
+        <h3>Waypoints</h3>
+
+        <!-- Örnek Waypoint -->
+        <div class="waypoint">
+            <h4>Waypoint 1</h4>
+            <label>
+                Altitude:
+                <input type="text" name="altitude" placeholder="Metre">
+            </label>
+            <label>
+                Speed:
+                <input type="text" name="speed" placeholder="km/h">
+            </label>
+            <div class="coordinates">
+                <label>
+                    Latitude:
+                    <input type="text" name="latitude" placeholder="Enlem">
+                </label>
+                <label>
+                    Longitude:
+                    <input type="text" name="longitude" placeholder="Boylam">
+                </label>
+            </div>
+        </div>
+
+        <!-- Yeni Waypointler ekleyebilirsiniz -->
+    </div>
+
+    <button class="rtl-button">Return To Launch</button>
+</div>
+<div id="waypoint-navigation-panel">
+    <div class="navigation-item">
+        <h4>Start</h4>
+        <div class="waypoint-coordinates">
+        </div>
+    </div>
+
+
+
+    <div id="waypoints-list">
+        <!--Waypoints-->
+    </div>
+
+    <div id="RTL">
+        <!--Return To Launch-->
+    </div>
+</div>
+
 <div class="info-panel">
     <h3>Drone Information</h3>
     <p>Latitude: <span id="gps-latitude">0.0</span></p>
