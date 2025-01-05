@@ -27,6 +27,10 @@ data class HeartbeatData(
     var system_status: Int = 0
 )
 
+data class GcsStatusData(
+    var current_mission_id : Int = 0,
+)
+
 data class RcChannelsData(
     var chan1_raw: Int = 0,
     var chan2_raw: Int = 0,
@@ -70,7 +74,8 @@ data class TelemetryData(
     val heartbeat: HeartbeatData = HeartbeatData(),
     val rcChannels: RcChannelsData = RcChannelsData(),
     val battery: BatteryData = BatteryData(),
-    val current_mission: CurrentMissionData = CurrentMissionData()
+    val current_mission: CurrentMissionData = CurrentMissionData(),
+    val gcsStatus: GcsStatusData = GcsStatusData()
 )
 
 class DroneDataParser {
@@ -84,6 +89,7 @@ class DroneDataParser {
             val rcChannels = RcChannelsData()
             val battery = BatteryData()
             val current_mission = CurrentMissionData()
+            val gcsStatus = GcsStatusData()
             try {
                 // GPS verilerini çıkar
                 val gpsMatch = Regex("\"gps\":\\s*\\{([^}]+)\\}").find(jsonString)
@@ -153,6 +159,12 @@ class DroneDataParser {
                         heartbeat.system_status = it.toInt()
                     }
                 }
+                val gcsStatusMatch = Regex("\"gcs_status\":\\s*\\{([^}]+)\\}").find(jsonString)
+                gcsStatusMatch?.groupValues?.get(1)?.let { gcsStatusContent ->
+                    Regex("\"current_mission_id\":\\s*(\\d+)").find(gcsStatusContent)?.groupValues?.get(1)?.let {
+                        gcsStatus.current_mission_id = it.toInt()
+                    }
+                }
 
                 // RC Kanal verilerini çıkar
                 val rcMatch = Regex("\"rc_channels\":\\s*\\{([^}]+)\\}").find(jsonString)
@@ -202,10 +214,8 @@ class DroneDataParser {
 
                 currentMissionMatch?.groupValues?.get(1)?.let { currentMissionContent ->
 
-                    // Doğrudan mission items içeriğini al
                     val itemsContent = currentMissionContent.substringAfter("[").substringBefore("]")
 
-                    // Her bir item'ı ayır
                     val items = itemsContent.split("},{").map {
                         it.trim().removeSurrounding("{", "}")
                     }
@@ -214,7 +224,6 @@ class DroneDataParser {
                         val missionItem = MissionItem()
 
                         try {
-                            // Parse işlemleri
                             Regex("\"seq\":(\\d+)").find(itemContent)?.groupValues?.get(1)?.let {
                                 missionItem.seq = it.toInt()
                             }
@@ -266,7 +275,7 @@ class DroneDataParser {
                 println("Parse hatası: ${e.message}")
             }
 
-            return TelemetryData(gps, imu, heartbeat, rcChannels, battery,current_mission)
+            return TelemetryData(gps, imu, heartbeat, rcChannels, battery,current_mission,gcsStatus)
         }
     }
 }

@@ -6,7 +6,7 @@
 #include "mavlink/common/mavlink.h"
 #include <cmath>
 
-// MAVLink komut enumları
+// Mavlink komut enumları
 enum MAV_CMD {
     MAV_CMD_NAV_WAYPOINT = 16,
     MAV_CMD_NAV_LOITER_UNLIM = 17,
@@ -158,13 +158,10 @@ void wait_for_mission_ack(int sock) {
     mavlink_mission_ack_t ack;
 
     while (true) {
-        // Mesajı al
         ssize_t len = recv(sock, &msg, sizeof(msg), 0);
         if (len > 0 && msg.msgid == MAVLINK_MSG_ID_MISSION_ACK) {
-            // MISSION_ACK mesajını çözümle
             mavlink_msg_mission_ack_decode(&msg, &ack);
 
-            // Gelen sonucu kontrol et
             if (ack.type == MAV_MISSION_ACCEPTED) {
                 std::cout << "Mission accepted by the vehicle." << std::endl;
                 break;
@@ -180,17 +177,15 @@ void send_mission_clear_all(int sock, const struct sockaddr_in& addr) {
     mavlink_message_t msg;
     uint8_t buffer[300];
 
-    // MAV_CMD_MISSION_CLEAR_ALL komutunu oluştur
+    // MAV_CMD_MISSION_CLEAR_ALL
     mavlink_command_long_t cmd = {0};
-    cmd.target_system = 1;  // Hedef sistem (1 genellikle PX4'ün system_id'sidir)
-    cmd.target_component = 1;  // Hedef bileşen (1 genellikle PX4'ün component_id'sidir)
+    cmd.target_system = 1;  
+    cmd.target_component = 1; 
     cmd.command = 41;  // Komut: Tüm görevleri sil
     cmd.confirmation = 0;  // Onay isteme
 
-    // Komutu MAVLink mesajına kodla
     mavlink_msg_command_long_encode(1, 0, &msg, &cmd);
 
-    // Mesajı gönder
     uint16_t len = mavlink_msg_to_send_buffer(buffer, &msg);
     sendto(sock, buffer, len, 0, (struct sockaddr*)&addr, sizeof(addr));
 
@@ -246,7 +241,7 @@ void send_rtl_command(int sock, const struct sockaddr_in& addr) {
     cmd.command = MAV_CMD_NAV_RETURN_TO_LAUNCH;
     cmd.confirmation = 0;
 
-    cmd.param1 = 0; // Geçerli olabilir, kullanımına göre ayarlayın
+    cmd.param1 = 0;
 
     mavlink_msg_command_long_encode(255, 0, &msg, &cmd);
     uint16_t len = mavlink_msg_to_send_buffer(buffer, &msg);

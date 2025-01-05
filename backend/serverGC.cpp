@@ -23,6 +23,7 @@ bool recieved_mission_upload = false;
 bool recieved_auto_RTL = false;
 bool recieved_RTL = false;
 bool recieved_mission = true;
+int current_mission_id = 0;
 typedef websocketpp::server<websocketpp::config::asio> WebSocketServer;
 typedef std::set<websocketpp::connection_hdl, std::owner_less<websocketpp::connection_hdl>> ConnectionList;
 
@@ -81,6 +82,14 @@ std::string heartbeat_to_json(const mavlink_heartbeat_t &heartbeat) {
               << "}";
     return json_data.str();
 }
+// gcsStatus verilerini JSON formatında dönüştürme
+std::string gcsStatus_to_json(int current_mission_id) {
+    std::stringstream json_data;
+    json_data << "{"
+              << "\"current_mission_id\": " << (int)current_mission_id
+              << "}";
+    return json_data.str();
+}
 
 // RC verilerini JSON formatında dönüştürme
 std::string rc_channels_data_to_json(const mavlink_rc_channels_raw_t &rc_channels) {
@@ -118,7 +127,8 @@ std::string all_data_to_json() {
               << "\"heartbeat\": " << heartbeat_to_json(latest_heartbeat) << ", "
               << "\"rc_channels\": " << rc_channels_data_to_json(latest_rc_channels) << ", "
               << "\"battery\": " << battery_data_to_json(latest_battery_status) << ", "
-              << "\"current_mission\": " << currentMissionJsonStr
+              << "\"current_mission\": " << currentMissionJsonStr << ","
+              << "\"gcs_status\": " << gcsStatus_to_json(current_mission_id)
               << "}";
     return json_data.str();
 }
@@ -243,8 +253,11 @@ int main() {
         if (payload == "fly") {
             received_fly_command = true;
         }
-
+        if(payload == "waitForMission"){
+            mission_points = {};
+        }
         if(payload.find("waypoint") != std::string::npos){
+            
             std::vector<std::string> result;
             std::stringstream ss(payload);
             std::string item;
@@ -278,16 +291,13 @@ int main() {
     unsigned char mavlink_buffer[1024];
 
     while (true) {
-        // UDP üzerinden veri al
         socklen_t addr_len = sizeof(udp_addr);
         int len = recvfrom(udp_sockfd, mavlink_buffer, sizeof(mavlink_buffer), 0,
                           (struct sockaddr *)&udp_addr, &addr_len);
 
         if (len > 0) {
-            // Gelen veriyi MAVLink mesajına dönüştür
             for (int i = 0; i < len; i++) {
                 if (mavlink_parse_char(MAVLINK_COMM_0, mavlink_buffer[i], &msg, NULL)) {
-                    // Mesajı işle ve WebSocket üzerinden gönder
                     process_mavlink_message(msg,sock,addr);
                     std::string json = all_data_to_json();
                     broadcast_data(json);
@@ -323,12 +333,11 @@ int main() {
             }
             recieved_mission = false;
             cout<<currentMissionJsonStr;
+            current_mission_id++;
         }   
         send_heartbeat(sock,addr);
         usleep(10000);
     }
-
-    // Temizlik
     close(udp_sockfd);
     server.stop();
     ws_thread.join();

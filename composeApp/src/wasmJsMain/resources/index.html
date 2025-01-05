@@ -385,15 +385,18 @@
                 addReturnWaypoint();
                 enableToFly();
                 first = false;
-            }else{
-                clickedCoordinates = [];
-                first = true;
             }
         }else {
             clickedCoordinates.push({ lat: lat, lng: lng });
             line.setLatLngs(clickedCoordinates);
             console.log(clickedCoordinates);
             first = false;
+        }
+    }
+    function finishUploadWaypointData(){
+        if(clickedCoordinates.length <=1){
+                clickedCoordinates = [];
+                first = true;
         }
     }
     function getUploadedMission(){

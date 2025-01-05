@@ -38,6 +38,9 @@ private external fun updateGpsData(latitude:Double, longitude:Double, altitude:I
 @JsName("updateBatteryData")
 private external fun updateBatteryData(voltage:Double, current:Int, remaining:Int)
 
+@JsName("updateGcsData")
+private external fun updateGcsStatus(mission_id:Int)
+
 @JsName("getCoordinates")
 private external fun getCoordinates() : String
 
@@ -86,6 +89,9 @@ private external fun getRefresh() : Boolean
 @JsName("resetRefresh")
 private external fun resetRefresh()
 
+@JsName("finishUploadWaypointData")
+private external fun finishUploadWaypointData()
+
 @OptIn(ExperimentalComposeUiApi::class)
 val mapView: MapView = WebMapView()
 private var socket: WebSocket? = null
@@ -114,6 +120,8 @@ fun convertCoordinates(coordinatesJson: String): List<String> {
 fun connect() {
     var enableFly = true
     var isFirstGetMission = true
+    var waitForMissionID = false
+    var lastGcsMissionID = 0
     try {
         socket = WebSocket("ws://localhost:4444")
 
@@ -139,21 +147,32 @@ fun connect() {
                     telemetryData.gps.fix_type,
                     telemetryData.gps.satellites_visible
                 )
+
                 if (getMission()){
                     if(isFirstGetMission){
                         isFirstGetMission = false;
                         telemetryData.current_mission.mission_items.forEach { waypoint ->
                             uploadWaypointData(waypoint.x,waypoint.y,waypoint.z,waypoint.command)
                         }
+                        finishUploadWaypointData()
                     }else{
                         socket?.send("getMission")
-                        window.setTimeout("",2000)
-                        telemetryData.current_mission.mission_items.forEach { waypoint ->
-                            uploadWaypointData(waypoint.x,waypoint.y,waypoint.z,waypoint.command)
-                        }
+                        lastGcsMissionID = telemetryData.gcsStatus.current_mission_id
+                        waitForMissionID = true
+
                     }
 
                     resetMission()
+                }
+                if (waitForMissionID){
+                    if(lastGcsMissionID+1== telemetryData.gcsStatus.current_mission_id){
+                        telemetryData.current_mission.mission_items.forEach { waypoint ->
+                            uploadWaypointData(waypoint.x,waypoint.y,waypoint.z,waypoint.command)
+                        }
+                        finishUploadWaypointData()
+                        waitForMissionID = false
+                        lastGcsMissionID++
+                    }
                 }
 
             } catch (e: Exception) {
@@ -167,6 +186,8 @@ fun connect() {
                 resetFly()
             }
             if (getUpload()){
+                socket?.send("waitForMission")
+                println(coordinateList)
                 coordinateList.forEach { i ->
                     socket?.send(i)
                 }
@@ -215,22 +236,11 @@ fun disconnect() {
 fun isConnected(): Boolean = isConnected
 
 fun main() {
-
-    // Initialize the map
     mapView.initialize()
 
-    // Set the location to New York City
     mapView.setLocation(47.352780, 8.342743, 12)
-
     mapView.goToMarker(47.352780, 8.342743);
 
     connect()
 
-
-
 }
-/*fun main() {
-    println("Program başladı")
-    val client = DroneDataClient()
-    client.connect()
-}*/

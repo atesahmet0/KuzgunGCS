@@ -24,7 +24,7 @@ using namespace std;
 
 std::string missionItemToJson(const mavlink_mission_item_int_t& item) {
     std::stringstream ss;
-    ss << std::fixed << std::setprecision(7); // GPS koordinatları için hassasiyet
+    ss << std::fixed << std::setprecision(7);
     
     ss << "{";
     ss << "\"seq\":" << item.seq << ",";
@@ -36,8 +36,8 @@ std::string missionItemToJson(const mavlink_mission_item_int_t& item) {
     ss << "\"param2\":" << item.param2 << ",";
     ss << "\"param3\":" << item.param3 << ",";
     ss << "\"param4\":" << item.param4 << ",";
-    ss << "\"x\":" << (item.x / 1e7) << ","; // Convert from 1e7 to decimal degrees
-    ss << "\"y\":" << (item.y / 1e7) << ","; // Convert from 1e7 to decimal degrees
+    ss << "\"x\":" << (item.x / 1e7) << ","; 
+    ss << "\"y\":" << (item.y / 1e7) << ","; 
     ss << "\"z\":" << item.z << ",";
     ss << "\"mission_type\": " << static_cast<int>(item.mission_type) << "";
     ss << "}";
@@ -45,7 +45,6 @@ std::string missionItemToJson(const mavlink_mission_item_int_t& item) {
     return ss.str();
 }
 
-// MAVLink komutlarını insan tarafından okunabilir stringe çeviren fonksiyon
 std::string getCommandString(uint16_t command) {
     switch(command) {
         case MAV_CMD_NAV_WAYPOINT: return "WAYPOINT";
@@ -59,7 +58,6 @@ std::string getCommandString(uint16_t command) {
     }
 }
 
-// Mission item'ı insan tarafından okunabilir formata dönüştüren fonksiyon
 std::string missionItemToHumanReadable(const mavlink_mission_item_int_t& item) {
     std::stringstream ss;
     ss << std::fixed << std::setprecision(7);
@@ -88,13 +86,13 @@ std::string missionItemToHumanReadable(const mavlink_mission_item_int_t& item) {
 class UDPMissionDownloader {
 private:
     std::vector<mavlink_mission_item_int_t> mission_items;
-    const int TIMEOUT_MS = 3000; // Timeout süresini 3 saniyeye çıkardık
+    const int TIMEOUT_MS = 500; 
     uint16_t expected_seq = 0;
     uint8_t system_id;
     uint8_t component_id;
     int retry_count = 0;
     const int MAX_RETRIES = 5;
-    
+
     int sock;
     struct sockaddr_in gcAddr;
     struct sockaddr_in locAddr;
@@ -130,7 +128,6 @@ public:
 
         fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) | O_NONBLOCK);
 
-        // Socket buffer boyutunu artır
         int buffer_size = 65535;
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size));
         setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size));
@@ -150,7 +147,7 @@ public:
         while (!download_complete) {
             mavlink_message_t msg;
             if (receiveMavlinkMessage(&msg)) {
-                retry_count = 0; // Başarılı mesaj alındığında retry sayacını sıfırla
+                retry_count = 0;
                 
                 switch (msg.msgid) {
                     case MAVLINK_MSG_ID_HEARTBEAT: {
@@ -224,7 +221,7 @@ public:
                 }
             }
 
-            usleep(10000); // 10ms bekleme
+            usleep(10000);
         }
         if (download_complete && !mission_items.empty()) {
             printMissionItems();
@@ -235,7 +232,6 @@ public:
     void printMissionItems() {
         std::cout << "\n=== Görev Listesi ===\n";
         
-        // JSON formatında çıktı
         std::cout << "JSON Format:\n";
         std::cout << "{\n  \"mission_items\": [\n";
         for (size_t i = 0; i < mission_items.size(); ++i) {
