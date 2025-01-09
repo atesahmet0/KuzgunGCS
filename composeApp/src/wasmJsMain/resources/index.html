@@ -170,6 +170,8 @@
     let line;
     let droneRouteLine;
     let lineReturn;
+    let waypointMarkerList = [];
+    let waypointMarkerCount = 0;
     let droneRoute = [];
     let clickedCoordinates = [];
     let coordinatesWillSend = [];
@@ -182,6 +184,7 @@
     let RTL = false;
     let mission = true;
     let refresh = true;
+    var waypointIcon;
     
 
     function getDeleteMission(){
@@ -231,8 +234,10 @@
             shadowAnchor: [4, 62],  // the same for the shadow
             popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
         });
-        marker = L.marker([0, 0], { icon: droneIcon }).addTo(map); // Create marker at the coordinates
-        droneRouteLine = L.polyline([], { color: 'green' }).addTo(map);
+
+
+        marker = L.marker([0, 0], { icon: droneIcon ,zIndexOffset:1000}).addTo(map); // Create marker at the coordinates
+        droneRouteLine = L.polyline([], { color: 'green' ,zIndexOffset:900}).addTo(map);
         lineReturn = L.polyline([], { color: 'red' }).addTo(map);
         line = L.polyline(clickedCoordinates, { color: 'blue' }).addTo(map);
 
@@ -243,13 +248,16 @@
                         console.log("first");
                         clickedCoordinates.push({ lat: marker.getLatLng().lat, lng: marker.getLatLng().lng });
                         first = false;
+                        addWaypointMarker(marker.getLatLng().lat,marker.getLatLng().lng,waypointMarkerCount);
+                        waypointMarkerCount++;
                     }
                     const lat = e.latlng.lat;  // Get latitude of the clicked point
                     const lng = e.latlng.lng;  // Get longitude of the clicked point
 
                     // Add the clicked point to the coordinates list
                     clickedCoordinates.push({ lat: lat, lng: lng });
-
+                    addWaypointMarker(lat,lng,waypointMarkerCount);
+                    waypointMarkerCount++;
                     // Update the marker position to the clicked coordinates
 
                     // Update the line with the new coordinates
@@ -263,6 +271,33 @@
             });
 
     }
+
+    function addWaypointMarker(lat,lng,count){
+        var waypointIcon = L.icon({
+            iconUrl:"point.png",
+            iconSize: [20,20],
+            shadowSize:[0,0],
+            iconAnchor:[10,10],
+            sshadowAnchor: [4, 62], 
+            popupAnchor: [-3, -76] 
+        });
+        let point = L.marker([lat,lng],{icon: waypointIcon,title:count}).addTo(map);
+        waypointMarkerList.push(point);
+    }
+
+    function removeAllWaypointMarkers(){
+        waypointMarkerList.forEach(waypoint =>{
+            waypoint.remove();
+        });
+        waypointMarkerList = [];
+    }
+
+    function removeLastWaypointMarker(){
+        waypointMarkerList[waypointMarkerList.length-1].remove();
+        waypointMarkerList.pop(-1);
+    }
+
+
     function drawDroneRoute(){
         var currentLatLng = marker.getLatLng();
         droneRoute.push(currentLatLng);
@@ -331,6 +366,8 @@
         }
         const waypointsList = document.getElementById('waypoints-list');
         waypointsList.removeChild(waypointsList.lastChild);
+        removeLastWaypointMarker();
+        waypointMarkerCount--;
     }
 
     function deleteAll(){
@@ -345,6 +382,8 @@
         waypointsList.innerHTML = '';
         const RTL = document.getElementById('RTL');
         RTL.innerHTML = '';
+        removeAllWaypointMarkers();
+        waypointMarkerCount=0;
     }
     function closeModal(){
         modal.style.display = "none";
@@ -401,6 +440,8 @@
             }
         }else {
             clickedCoordinates.push({ lat: lat, lng: lng });
+            addWaypointMarker(lat,lng,waypointMarkerCount);
+            waypointMarkerCount++;
             line.setLatLngs(clickedCoordinates);
             console.log(clickedCoordinates);
             first = false;
@@ -408,6 +449,8 @@
     }
     function finishUploadWaypointData(){
         if(clickedCoordinates.length <=1){
+                removeAllWaypointMarkers();
+                waypointMarkerCount=0;
                 clickedCoordinates = [];
                 first = true;
         }else{
@@ -425,20 +468,41 @@
         const RTL = document.getElementById('RTL');
         RTL.innerHTML = '';
         mission = true;
+        removeAllWaypointMarkers();
+        waypointMarkerCount=0;
         
     }
     function navItemClicked(x) {
+        var waypointIcon = L.icon({
+            iconUrl:"point.png",
+            iconSize: [20,20],
+            shadowSize:[0,0],
+            iconAnchor:[10,10],
+            sshadowAnchor: [4, 62], 
+            popupAnchor: [-3, -76] 
+        });
+        var redWaypointIcon = L.icon({
+            iconUrl:"redPoint.png",
+            iconSize: [20,20],
+            shadowSize:[0,0],
+            iconAnchor:[10,10],
+            sshadowAnchor: [4, 62], 
+            popupAnchor: [-3, -76] 
+        });
         const waypoint = document.getElementById("waypoint-info-"+x);
         if(waypoint.style.display == "block"){
             waypoint.style.display = "none";
+            waypointMarkerList[x].setIcon(waypointIcon);
         }else{
             waypoint.style.display = "block";
+            waypointMarkerList[x].setIcon(redWaypointIcon);
         }
     }
 
 
     //let waypointCount = 0; // Waypoint sayacı
     function addWaypoint(waypointCount,lat,lng,alt) {
+        const waypointsList = document.getElementById('waypoints-list');
         //waypointCount++; // Sayaç değerini artır
 
         // Yeni waypoint div'i oluştur
@@ -511,9 +575,49 @@
         waypointInfoDiv.appendChild(coordinatesDiv);
         waypointDiv.appendChild(waypointInfoDiv);
 
+        //Delete ve Apply Button
+        const removeButton = document.createElement("button");
+        removeButton.textContent="Remove";
+        removeButton.id = `remove-button-${waypointCount}`;
+        removeButton.style.marginRight = "26%";
+
+        removeButton.onclick = function(){
+            console.log(waypointCount);
+            clickedCoordinates = clickedCoordinates.filter((_, index) => index !== waypointCount);
+            line.setLatLngs(clickedCoordinates);
+            waypointMarkerList[waypointCount].remove();
+            waypointMarkerList = waypointMarkerList.filter((_,index) => index !== waypointCount);
+            waypointsList.innerHTML = '';
+            const RTL = document.getElementById('RTL');
+            RTL.innerHTML = '';
+            removeAllWaypointMarkers();
+            waypointMarkerCount=0;
+            addWaypointMarker(clickedCoordinates[0].lat,clickedCoordinates[0].lng,waypointMarkerCount);
+            waypointMarkerCount++;
+            for(let i = 1; i < clickedCoordinates.length; i++){
+                addWaypoint(i,clickedCoordinates[i].lat,clickedCoordinates[i].lng,0);
+                addWaypointMarker(clickedCoordinates[i].lat,clickedCoordinates[i].lng,waypointMarkerCount);
+                waypointMarkerCount++;
+            }
+        }
+
+        const applyButton = document.createElement("button");
+        applyButton.textContent="Apply Changes";
+        applyButton.id = `apply-button-${waypointCount}`;
+
+        applyButton.onclick = function(){
+            clickedCoordinates[waypointCount] = {lat:parseFloat(latitudeInput.value),lng:parseFloat(longitudeInput.value)};
+            line.setLatLngs(clickedCoordinates);
+            waypointMarkerList[waypointCount].setLatLng(clickedCoordinates[waypointCount]);
+        }
+
+        waypointInfoDiv.appendChild(removeButton);
+        waypointInfoDiv.appendChild(applyButton);
+
+
         // Waypointler listesini al ve yeni waypoint'i ekle
-        const waypointsList = document.getElementById('waypoints-list');
         waypointsList.appendChild(waypointDiv);
+        
     }
 
     function addReturnToLaunch(){
@@ -568,7 +672,7 @@
     </div>
 
     <button class="rtl-button">Return To Launch</button>
-</div>
+    </div>
 <div id="waypoint-navigation-panel">
     <div class="navigation-item">
         <h4>Start</h4>
