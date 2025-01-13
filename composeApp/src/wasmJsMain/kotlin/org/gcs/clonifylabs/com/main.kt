@@ -92,6 +92,12 @@ private external fun resetRefresh()
 @JsName("finishUploadWaypointData")
 private external fun finishUploadWaypointData()
 
+@JsName("setParam")
+private external fun setParam():Boolean
+
+@JsName("resetParam")
+private external fun resetParam()
+
 @OptIn(ExperimentalComposeUiApi::class)
 val mapView: MapView = WebMapView()
 private var socket: WebSocket? = null
@@ -210,6 +216,10 @@ fun connect() {
                 coordinateList = mutableListOf()
                 //socket?.send("getMission")
                 resetRefresh()
+            }
+            if(setParam()){
+                socket?.send("param")
+                resetParam()
             }
         }
 

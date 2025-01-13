@@ -15,6 +15,7 @@
 #include <sstream>
 #include <string>
 #include "getMission.hpp"
+#include "setParam.hpp"
 using namespace std;
 
 #define UDP_PORT 14550
@@ -24,6 +25,7 @@ bool recieved_auto_RTL = false;
 bool recieved_RTL = false;
 bool recieved_mission = true;
 int current_mission_id = 0;
+bool setParam = false;
 typedef websocketpp::server<websocketpp::config::asio> WebSocketServer;
 typedef std::set<websocketpp::connection_hdl, std::owner_less<websocketpp::connection_hdl>> ConnectionList;
 
@@ -162,6 +164,7 @@ void process_mavlink_message(mavlink_message_t &msg,int sock,sockaddr_in addr) {
                 set_mode_rtl(sock,addr);
             }
             
+            
             break;
         }
         case MAVLINK_MSG_ID_RC_CHANNELS_RAW: {
@@ -173,7 +176,6 @@ void process_mavlink_message(mavlink_message_t &msg,int sock,sockaddr_in addr) {
             break;
         }
         default:
-            
             break;
     }
 }
@@ -285,6 +287,9 @@ int main() {
         if(payload == "getMission"){
             recieved_mission = true;
         }
+        if(payload == "param"){
+            setParam = true;
+        }
     });
     // MAVLink mesajı ve buffer
     mavlink_message_t msg;
@@ -315,6 +320,14 @@ int main() {
         if(recieved_RTL){
             send_rtl_command(sock,addr);
             recieved_RTL = false;
+        }
+        if(setParam){
+            float param = 1000.0f;
+            //send(sock,addr,"BAT1_N_CELLS",param);
+            /*UDPMissionDownloader downloader("127.0.0.1", 14580, 14555);
+            downloader.setParameter("BAT1_CAPACITY", param);*/
+            setParameter("BAT1_CAPACITY",param,sock,addr);
+            setParam = false;
         }
         if (recieved_mission)
         {

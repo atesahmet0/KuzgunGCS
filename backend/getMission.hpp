@@ -259,7 +259,7 @@ public:
         jsonStream << "]}";
 
         return jsonStream.str();
-    }   
+    }  
 
 private:
     bool receiveMavlinkMessage(mavlink_message_t* msg) {

@@ -185,6 +185,7 @@
     let mission = true;
     let refresh = true;
     var waypointIcon;
+    let param = false;
     
 
     function getDeleteMission(){
@@ -498,7 +499,12 @@
             waypointMarkerList[x].setIcon(redWaypointIcon);
         }
     }
-
+    function setParam(){
+        return param;
+    }
+    function resetParam(){
+        param = false;
+    }
 
     //let waypointCount = 0; // Waypoint sayacı
     function addWaypoint(waypointCount,lat,lng,alt) {
